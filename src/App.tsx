@@ -1,14 +1,19 @@
-import { memo, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useClockStore, type Clock } from "./clock-store";
+import {
+  getClockFormatters,
+  getTimeZoneOption,
+  TIME_ZONES,
+  toTimeZoneId,
+} from "./time-zones";
+import { useTheme, type Theme } from "./theme-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { DesktopIcon, MoonIcon, PlusIcon, RepeatIcon, SunIcon } from "@phosphor-icons/react";
+import { DesktopIcon, MoonIcon, PlusIcon, SunIcon, TrashIcon } from "@phosphor-icons/react";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -31,36 +36,50 @@ import {
 } from "./components/ui/select";
 
 function App() {
+  const now = useNow();
+
   return (
     <main className="h-full p-8 ">
-      <NavBar />
-      <BigClock />
-      <ClockList />
+      <NavBar now={now} />
+      <BigClock now={now} />
+      <ClockList now={now} />
     </main>
   );
 }
 
-function NavBar() {
+interface TimeProps {
+  now: Date;
+}
+
+function NavBar({ now }: TimeProps) {
   return (
     <div className="flex justify-between">
-      <Greeting />
+      <Greeting now={now} />
       <ThemeSelect />
     </div>
   );
 }
 
 function ThemeSelect() {
-  const items = [
+  const { theme, setTheme } = useTheme();
+  const items: { label: string; value: Theme; icon: React.ReactNode }[] = [
     { label: "Light", value: "light", icon: <SunIcon /> },
     { label: "Dark", value: "dark", icon: <MoonIcon /> },
     { label: "System", value: "system", icon: <DesktopIcon /> },
-    { label: "Adaptive", value: "adaptive", icon: <RepeatIcon /> },
+    // { label: "Adaptive", value: "adaptive", icon: <RepeatIcon /> },
   ];
+  const selectedItem = items.find((item) => item.value === theme);
 
   return (
-    <Select items={items}>
+    <Select
+      items={items}
+      value={theme}
+      onValueChange={(theme) => {
+        if (theme) setTheme(theme);
+      }}
+    >
       <SelectTrigger>
-        {/* TODO: render icon */}
+        {selectedItem?.icon}
         <SelectValue placeholder="Theme" />
       </SelectTrigger>
       <SelectContent>
@@ -76,8 +95,7 @@ function ThemeSelect() {
   );
 }
 
-function Greeting() {
-  const now = useNow();
+function Greeting({ now }: TimeProps) {
   const hours = now.getHours();
   let greeting: string;
 
@@ -98,52 +116,31 @@ function Greeting() {
   );
 }
 
-function ClockList() {
+function ClockList({ now }: TimeProps) {
   const clocks = useClockStore((store) => store.clocks);
 
   return (
     <ul className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-4">
       {clocks.map((clock) => (
-        <ClockDisplay key={clock.id} clock={clock} />
+        <ClockDisplay key={clock.id} clock={clock} now={now} />
       ))}
       <AddClock />
     </ul>
   );
 }
 
-const TIME_ZONES = Intl.supportedValuesOf("timeZone").map((ianaTimeZone) => {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: ianaTimeZone,
-    timeZoneName: "short",
-  }).formatToParts(new Date());
-
-  const [region, city] = ianaTimeZone.split("/", 2);
-
-  return {
-    region,
-    city: city.replaceAll("_", " "),
-    abbreviation: parts.find((part) => part.type === "timeZoneName")?.value,
-    ianaTimeZone,
-  };
-});
-
 function AddClock() {
   const addClock = useClockStore((store) => store.addClock);
   const regionGroups = Object.groupBy(TIME_ZONES, (tz) => tz.region);
 
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
 
   return (
     <li>
       <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
         <DialogTrigger
           render={
-            <Button
-              variant="outline"
-              className="w-full h-full border-dashed"
-              onClick={() => setOpen(true)}
-            >
+            <Button variant="outline" className="w-full h-full border-dashed">
               <PlusIcon className="text-muted-foreground" />
             </Button>
           }
@@ -154,12 +151,7 @@ function AddClock() {
             <DialogDescription>Select the time zone for the new clock.</DialogDescription>
           </DialogHeader>
 
-          <Command
-            value={value}
-            onValueChange={(value) => {
-              setValue(value);
-            }}
-          >
+          <Command>
             <CommandInput placeholder="Type a command or search..." />
             <CommandList>
               <CommandEmpty>No results found.</CommandEmpty>
@@ -167,50 +159,38 @@ function AddClock() {
                 <CommandGroup key={region} heading={region}>
                   {timeZones?.map((timeZone) => (
                     <CommandItem
-                      onSelect={(timeZone) => {
-                        console.log("item selected", timeZone);
-                        addClock({ id: crypto.randomUUID(), timeZone: timeZone });
+                      onSelect={(timeZoneId) => {
+                        addClock(toTimeZoneId(timeZoneId));
                         setOpen(false);
                       }}
-                      value={timeZone.ianaTimeZone}
-                      keywords={[timeZone.city, timeZone.region, timeZone.ianaTimeZone]}
-                      key={timeZone.ianaTimeZone}
+                      value={timeZone.id}
+                      keywords={[timeZone.location, timeZone.region, timeZone.id]}
+                      key={timeZone.id}
                     >
-                      {timeZone.city} - {timeZone.abbreviation}
+                      {timeZone.location}
                     </CommandItem>
                   ))}
                 </CommandGroup>
               ))}
             </CommandList>
           </Command>
-          {/* <Label htmlFor="timezone">Name</Label>
-        <Input id="timezone" name="timezone" value={searchText} onChange={e => setSearchText(e.target.value)} /> */}
-          {/* <ul className="h-64 overflow-y-scroll">
-
-        </ul> */}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline">Cancel</Button>} />
-            <Button type="submit">Save changes</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </li>
   );
 }
 
-function BigClock() {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hour12: false,
-  });
+const BIG_CLOCK_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric",
+  hour12: false,
+});
 
-  const now = useNow();
-
+function BigClock({ now }: TimeProps) {
   return (
     <div className="w-full flex flex-1 justify-center items-center @container ">
-      <div className="text-[21cqw] font-mono">{formatter.format(now)}</div>
+      <div className="text-[21cqw] font-mono">{BIG_CLOCK_FORMATTER.format(now)}</div>
     </div>
   );
 }
@@ -241,54 +221,45 @@ function useNow() {
 
 interface ClockProps {
   clock: Clock;
+  now: Date;
 }
-const ClockDisplay = memo(function ClockDisplay(props: ClockProps) {
-  // const clock = useClockStore(state => state.clockById[props.id])
-  const timeFormatter = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hour12: false,
-    timeZone: props.clock.timeZone,
-  });
+function ClockDisplay({ clock, now }: ClockProps) {
+  const timeZone = getTimeZoneOption(clock.timeZone);
+  const formatters = getClockFormatters(clock.timeZone);
+  const removeClock = useClockStore(store => store.removeClock)
 
-  const dateFormatter = new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    timeZone: props.clock.timeZone,
-  });
-
-  const timezoneFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: props.clock.timeZone,
-    timeZoneName: "short",
-  });
-
-  const now = useNow();
-
-  const city = props.clock.timeZone.split("/", 2)[1].replace("_", " ");
-
-  const timeZoneName = timezoneFormatter
+  const timeZoneName = formatters.timeZoneName
     .formatToParts(now)
     .find((part) => part.type === "timeZoneName")?.value;
 
-  // const timezoneAbbreviation =
-
   return (
     <li>
-      <Card>
-        <CardHeader className="flex justify-between items-center">
-          <CardTitle>{city} </CardTitle>
+      <Card className="group">
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>{timeZone.location}</CardTitle>
 
-          <span className="text-muted-foreground">{timeZoneName}</span>
+          <div className="flex items-center">
+            <span className="text-muted-foreground">{timeZoneName}</span>
+            <div className="md:w-0 overflow-hidden md:opacity-0 transition-[width,opacity] duration-200 group-hover:w-10 group-hover:opacity-100 group-focus-within:w-10 group-focus-within:opacity-100">
+              <Button
+                variant="destructive"
+                size="icon"
+                className="ml-2"
+                aria-label={`Delete ${timeZone.location} clock`}
+                onClick={() => removeClock(clock.id)}
+              >
+                <TrashIcon />
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="font-mono text-muted-foreground">{dateFormatter.format(now)}</div>
-          <div className="text-3xl font-mono">{timeFormatter.format(now)}</div>
+          <div className="font-mono text-muted-foreground">{formatters.date.format(now)}</div>
+          <div className="text-3xl font-mono">{formatters.time.format(now)}</div>
         </CardContent>
       </Card>
     </li>
   );
-});
+}
 
 export default App;

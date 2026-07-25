@@ -1,39 +1,42 @@
 import { create } from "zustand";
+import { toTimeZoneId, type TimeZoneId } from "./time-zones";
 
 export interface Clock {
   id: string;
-  timeZone: string;
+  timeZone: TimeZoneId;
 }
 
 export interface ClockStore {
   clocks: Clock[];
-  clockById: Record<string, Clock>;
 
-  addClock(this: void, clock: Clock): void;
-  // removeClock(clock: Clock): void
+  addClock(this: void, timeZone: TimeZoneId): void;
+  removeClock(this: void, clockId: string): void;
 }
 
 const CLOCKS_EMPTY = [
   {
     id: crypto.randomUUID(),
-    timeZone: "America/Los_Angeles",
+    timeZone: toTimeZoneId("America/Los_Angeles"),
   },
   {
     id: crypto.randomUUID(),
-    timeZone: "America/New_York",
+    timeZone: toTimeZoneId("America/New_York"),
   },
 ] satisfies Clock[];
-const CLOCK_BY_ID_EMPTY = {} satisfies Record<string, Clock>;
 
 export const useClockStore = create<ClockStore>()((set) => ({
   clocks: CLOCKS_EMPTY,
-  clockById: CLOCK_BY_ID_EMPTY,
 
-  addClock: (clock: Clock) => {
+  addClock: (timeZone: TimeZoneId) => {
     set((old) => ({
       ...old,
-      clockById: { ...old.clockById, [clock.id]: clock },
-      clocks: [...old.clocks, clock],
+      clocks: [...old.clocks, { id: crypto.randomUUID(), timeZone }],
+    }));
+  },
+  removeClock: (clockId: string) => {
+    set((old) => ({
+      ...old,
+      clocks: old.clocks.filter((clock) => clock.id !== clockId),
     }));
   },
 }));

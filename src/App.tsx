@@ -2,14 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { useClockStore, type Clock } from "./clock-store";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import {
-  ComputerTowerIcon,
-  DesktopIcon,
-  MoonIcon,
-  PlusIcon,
-  RepeatIcon,
-  SunIcon,
-} from "@phosphor-icons/react";
+import { DesktopIcon, MoonIcon, PlusIcon, RepeatIcon, SunIcon } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogClose,
@@ -33,11 +26,9 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "./components/ui/select";
-import { validators } from "tailwind-merge";
 
 function App() {
   return (

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { toTimeZoneId, type TimeZoneId } from "./time-zones";
 
 export interface Clock {
@@ -24,19 +25,26 @@ const CLOCKS_EMPTY = [
   },
 ] satisfies Clock[];
 
-export const useClockStore = create<ClockStore>()((set) => ({
-  clocks: CLOCKS_EMPTY,
+export const useClockStore = create<ClockStore>()(
+  persist(
+    (set) => ({
+      clocks: CLOCKS_EMPTY,
 
-  addClock: (timeZone: TimeZoneId) => {
-    set((old) => ({
-      ...old,
-      clocks: [...old.clocks, { id: crypto.randomUUID(), timeZone }],
-    }));
-  },
-  removeClock: (clockId: string) => {
-    set((old) => ({
-      ...old,
-      clocks: old.clocks.filter((clock) => clock.id !== clockId),
-    }));
-  },
-}));
+      addClock: (timeZone: TimeZoneId) => {
+        set((old) => ({
+          clocks: [...old.clocks, { id: crypto.randomUUID(), timeZone }],
+        }));
+      },
+      removeClock: (clockId: string) => {
+        set((old) => ({
+          clocks: old.clocks.filter((clock) => clock.id !== clockId),
+        }));
+      },
+    }),
+    {
+      name: "clock-list",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ clocks: state.clocks }),
+    },
+  ),
+);

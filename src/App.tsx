@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MeetingPlanner } from "./components/timezone-planner/timezone-planner";
 import { useClockStore, type Clock } from "./clock-store";
 import {
   getClockFormatters,
@@ -39,10 +40,11 @@ function App() {
   const now = useNow();
 
   return (
-    <main className="h-full p-8 ">
+    <main className="h-full p-4 sm:p-8 ">
       <NavBar now={now} />
       <BigClock now={now} />
       <ClockList now={now} />
+      <MeetingPlanner />
     </main>
   );
 }
@@ -140,7 +142,7 @@ function AddClock() {
       <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
         <DialogTrigger
           render={
-            <Button variant="outline" className="w-full h-full border-dashed">
+            <Button variant="outline" className="w-full h-full border-dashed" aria-label="Add timezone">
               <PlusIcon className="text-muted-foreground" />
             </Button>
           }
@@ -152,7 +154,7 @@ function AddClock() {
           </DialogHeader>
 
           <Command>
-            <CommandInput placeholder="Type a command or search..." />
+            <CommandInput placeholder="Search timezones..." />
             <CommandList>
               <CommandEmpty>No results found.</CommandEmpty>
               {Object.entries(regionGroups).map(([region, timeZones]) => (

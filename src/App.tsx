@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { MeetingPlanner } from "./components/timezone-planner/timezone-planner";
 import { useClockStore, type Clock } from "./clock-store";
+import { startNowTimer, useNow } from "./now-store";
 import {
   getClockFormatters,
   getTimeZoneOption,
   TIME_ZONES,
   toTimeZoneId,
+  type TimeZoneId,
 } from "./time-zones";
 import { useTheme, type Theme } from "./theme-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
@@ -37,26 +39,22 @@ import {
 } from "./components/ui/select";
 
 function App() {
-  const now = useNow();
+  useEffect(startNowTimer, []);
 
   return (
     <main className="h-full p-4 sm:p-8 ">
-      <NavBar now={now} />
-      <BigClock now={now} />
-      <ClockList now={now} />
+      <NavBar />
+      <BigClock />
+      <ClockList />
       <MeetingPlanner />
     </main>
   );
 }
 
-interface TimeProps {
-  now: Date;
-}
-
-function NavBar({ now }: TimeProps) {
+function NavBar() {
   return (
     <div className="flex justify-between">
-      <Greeting now={now} />
+      <Greeting />
       <ThemeSelect />
     </div>
   );
@@ -97,19 +95,22 @@ function ThemeSelect() {
   );
 }
 
-function Greeting({ now }: TimeProps) {
-  const hours = now.getHours();
-  let greeting: string;
+function getGreeting(now: number) {
+  const hours = new Date(now).getHours();
 
   if (hours >= 4 && hours < 12) {
-    greeting = "Good Morning";
+    return "Good Morning";
   } else if (hours >= 12 && hours < 17) {
-    greeting = "Good Afternoon";
+    return "Good Afternoon";
   } else if (hours >= 17 && hours < 21) {
-    greeting = "Good Evening";
+    return "Good Evening";
   } else {
-    greeting = "Good Night";
+    return "Good Night";
   }
+}
+
+function Greeting() {
+  const greeting = useNow((state) => getGreeting(state.now));
 
   return (
     <div className="flex items-center justify-center">
@@ -118,13 +119,13 @@ function Greeting({ now }: TimeProps) {
   );
 }
 
-function ClockList({ now }: TimeProps) {
+function ClockList() {
   const clocks = useClockStore((store) => store.clocks);
 
   return (
     <ul className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-4">
       {clocks.map((clock) => (
-        <ClockDisplay key={clock.id} clock={clock} now={now} />
+        <ClockDisplay key={clock.id} clock={clock} />
       ))}
       <AddClock />
     </ul>
@@ -142,7 +143,11 @@ function AddClock() {
       <Dialog open={open} onOpenChange={(open) => setOpen(open)}>
         <DialogTrigger
           render={
-            <Button variant="outline" className="w-full h-full border-dashed" aria-label="Add timezone">
+            <Button
+              variant="outline"
+              className="w-full h-full border-dashed"
+              aria-label="Add timezone"
+            >
               <PlusIcon className="text-muted-foreground" />
             </Button>
           }
@@ -189,50 +194,42 @@ const BIG_CLOCK_FORMATTER = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
-function BigClock({ now }: TimeProps) {
+function BigClock() {
+  const time = useNow((state) => BIG_CLOCK_FORMATTER.format(state.now));
   return (
     <div className="w-full flex flex-1 justify-center items-center @container ">
-      <div className="text-[21cqw] font-mono">{BIG_CLOCK_FORMATTER.format(now)}</div>
+      <div className="text-[21cqw] font-mono">{time}</div>
     </div>
   );
 }
 
-function useNow() {
-  const [now, setNow] = useState(() => new Date());
+function ClockTimeZoneName({ timeZone }: { timeZone: TimeZoneId }) {
+  const { timeZoneName } = getClockFormatters(timeZone);
+  const name = useNow(
+    (state) =>
+      timeZoneName.formatToParts(state.now).find((part) => part.type === "timeZoneName")?.value,
+  );
+  return <span className="text-muted-foreground">{name}</span>;
+}
 
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
+function ClockDate({ timeZone }: { timeZone: TimeZoneId }) {
+  const { date } = getClockFormatters(timeZone);
+  const text = useNow((state) => date.format(state.now));
+  return <div className="font-mono text-muted-foreground">{text}</div>;
+}
 
-    const scheduleNextTick = () => {
-      const currentTime = Date.now();
-      const delay = 1000 - (currentTime % 1000);
-
-      timeoutId = setTimeout(() => {
-        setNow(new Date());
-        scheduleNextTick();
-      }, delay);
-    };
-
-    scheduleNextTick();
-
-    return () => clearTimeout(timeoutId);
-  }, []);
-
-  return now;
+function ClockTime({ timeZone }: { timeZone: TimeZoneId }) {
+  const { time } = getClockFormatters(timeZone);
+  const text = useNow((state) => time.format(state.now));
+  return <div className="text-3xl font-mono">{text}</div>;
 }
 
 interface ClockProps {
   clock: Clock;
-  now: Date;
 }
-function ClockDisplay({ clock, now }: ClockProps) {
+function ClockDisplay({ clock }: ClockProps) {
   const timeZone = getTimeZoneOption(clock.timeZone);
-  const formatters = getClockFormatters(clock.timeZone);
-  const removeClock = useClockStore(store => store.removeClock)
-
-  const timeZoneName = formatters.timeZoneName
-    .formatToParts(now)
-    .find((part) => part.type === "timeZoneName")?.value;
+  const removeClock = useClockStore((store) => store.removeClock);
 
   return (
     <li>
@@ -241,7 +238,7 @@ function ClockDisplay({ clock, now }: ClockProps) {
           <CardTitle>{timeZone.location}</CardTitle>
 
           <div className="flex items-center">
-            <span className="text-muted-foreground">{timeZoneName}</span>
+            <ClockTimeZoneName timeZone={clock.timeZone} />
             <div className="md:w-0 overflow-hidden md:opacity-0 transition-[width,opacity] duration-200 group-hover:w-10 group-hover:opacity-100 group-focus-within:w-10 group-focus-within:opacity-100">
               <Button
                 variant="destructive"
@@ -256,8 +253,8 @@ function ClockDisplay({ clock, now }: ClockProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="font-mono text-muted-foreground">{formatters.date.format(now)}</div>
-          <div className="text-3xl font-mono">{formatters.time.format(now)}</div>
+          <ClockDate timeZone={clock.timeZone} />
+          <ClockTime timeZone={clock.timeZone} />
         </CardContent>
       </Card>
     </li>

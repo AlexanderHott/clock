@@ -71,9 +71,9 @@ export function TimeDial({
   }
 
   return (
-    <div className="tp-dial-wrap">
+    <div className="w-full max-w-60 justify-self-center lg:max-w-[230px]">
       <div
-        className="tp-dial"
+        className="relative touch-none cursor-grab rounded-full select-none active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         role="slider"
         tabIndex={0}
         aria-label={`Meeting start in ${name}`}
@@ -97,8 +97,8 @@ export function TimeDial({
             event.currentTarget.releasePointerCapture(event.pointerId);
         }}
       >
-        <svg viewBox="0 0 320 320" aria-hidden="true">
-          <circle cx="160" cy="160" r="156" className="tp-dial-face" />
+        <svg className="block w-full" viewBox="0 0 320 320" aria-hidden="true">
+          <circle cx="160" cy="160" r="156" className="fill-card stroke-border" />
           {Array.from({ length: dayMinutes / STEP }, (_, i) => {
             const a = point(i * STEP, dayMinutes, i % 4 === 0 ? 143 : 148);
             const b = point(i * STEP, dayMinutes, 151);
@@ -109,7 +109,9 @@ export function TimeDial({
                 y1={a.y}
                 x2={b.x}
                 y2={b.y}
-                className={i % 4 === 0 ? "tp-major-tick" : "tp-minor-tick"}
+                className={
+                  i % 4 === 0 ? "stroke-muted-foreground stroke-1" : "stroke-border stroke-1"
+                }
               />
             );
           })}
@@ -120,7 +122,7 @@ export function TimeDial({
                 key={i}
                 x={p.x}
                 y={p.y}
-                className="tp-dial-label"
+                className="fill-muted-foreground text-[10px]"
                 dominantBaseline="central"
                 textAnchor="middle"
               >
@@ -128,47 +130,63 @@ export function TimeDial({
               </text>
             );
           })}
-          <circle cx="160" cy="160" r="119" className="tp-dial-track" />
+          <circle cx="160" cy="160" r="119" className="fill-none stroke-muted stroke-[8]" />
           {windows.map((window) => (
             <path
               key={window.start}
               d={arc(window.start, window.end, dayMinutes, 119)}
-              className="tp-common-arc"
+              className="fill-none stroke-foreground/20 stroke-[8]"
             />
           ))}
           {tracks.slice(0, 5).map((windows, index) => (
             <g key={index}>
-              <circle cx="160" cy="160" r={102 - index * 7} className="tp-city-track" />
+              <circle
+                cx="160"
+                cy="160"
+                r={102 - index * 7}
+                className="fill-none stroke-border stroke-1 [stroke-dasharray:2_4]"
+              />
               {windows.map((window) => (
                 <path
                   key={window.start}
                   d={arc(window.start, window.end, dayMinutes, 102 - index * 7)}
-                  className="tp-city-arc"
+                  className="fill-none stroke-muted-foreground stroke-2"
                 />
               ))}
             </g>
           ))}
-          <path d={arc(value, value + duration, dayMinutes, 119)} className="tp-selection-arc" />
+          <path
+            d={arc(value, value + duration, dayMinutes, 119)}
+            className="fill-none stroke-foreground stroke-[8] [stroke-linecap:round]"
+          />
           <line
             x1={point(value, dayMinutes, 66).x}
             y1={point(value, dayMinutes, 66).y}
             x2={handle.x}
             y2={handle.y}
-            className="tp-dial-hand"
+            className="stroke-foreground stroke-1"
           />
-          <circle cx={end.x} cy={end.y} r="4" className="tp-dial-end" />
-          <circle cx={handle.x} cy={handle.y} r="10" className="tp-dial-knob" />
-          <circle cx={handle.x} cy={handle.y} r="3" className="tp-dial-knob-center" />
+          <circle cx={end.x} cy={end.y} r="4" className="fill-foreground" />
+          <circle
+            cx={handle.x}
+            cy={handle.y}
+            r="10"
+            className="fill-foreground stroke-card stroke-[3]"
+          />
+          <circle cx={handle.x} cy={handle.y} r="3" className="fill-card" />
         </svg>
-        <div className="tp-dial-readout" aria-hidden="true">
-          <span className="tp-eyebrow">MEETING START</span>
-          <strong>{time}</strong>
-          <span>{name}</span>
-          <small>{durationLabel(duration)}</small>
+        <div
+          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
+          aria-hidden="true"
+        >
+          <span className="text-xs text-muted-foreground">Start time</span>
+          <strong className="text-3xl font-normal">{time}</strong>
+          <span className="max-w-28 truncate text-xs">{name}</span>
+          <small className="mt-1 text-xs text-muted-foreground">{durationLabel(duration)}</small>
         </div>
       </div>
-      <p id={hintId} className="tp-dial-hint">
-        Drag to explore · arrow keys ±15m
+      <p id={hintId} className="mt-3 text-center text-xs text-muted-foreground">
+        Drag the dial or use arrow keys.
       </p>
     </div>
   );
